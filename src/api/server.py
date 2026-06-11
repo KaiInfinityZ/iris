@@ -26,15 +26,16 @@ load_dotenv()
 
 # Services
 from src.api.services.pipeline import pipeline_service, MODEL_CONFIGS
-from src.api.services.nsfw_filter import check_nsfw_prompt
 from src.api.services.history import generation_history
 from src.api.services.queue import generation_queue
 
 # Routes
-from src.api.routes import system, gallery, queue, history, templates, admin
+from src.api.routes import system, gallery, queue, history, templates, admin, upscaler, settings
 
 # Utils
 from src.core.config import Config
+from src.core.local_model_loader import LocalModelLoader
+from src.core.memory_manager import clear_cache, get_memory_stats
 from src.utils.logger import create_logger
 from src.utils.file_manager import FileManager
 
@@ -43,7 +44,6 @@ from src.core.exceptions import (
     IRISException,
     ModelLoadError,
     VRAMExhaustedError,
-    NSFWContentError,
     GenerationError,
     QueueFullError,
     InvalidParameterError,
@@ -56,8 +56,7 @@ logger = create_logger("IRISServer")
 BASE_DIR = Path(__file__).resolve().parents[2]
 ASSETS_DIR = BASE_DIR / "assets"
 STATIC_DIR = BASE_DIR / "static"
-FRONTEND_DIR = Config.BASE_DIR / "frontend"
-REACT_DIST_DIR = BASE_DIR / "frontend-react" / "dist"
+REACT_DIST_DIR = BASE_DIR / "frontend" / "dist"
 
 # WebSocket clients
 connected_clients = []
@@ -76,6 +75,9 @@ SETTINGS_CACHE_TTL = 2.0  # Cache settings for 2 seconds
 
 # Server start time for health check
 _server_start_time = None
+
+# Local model loader instance
+local_model_loader = None
 
 # Discord Bot Process (global for shutdown handling)
 _discord_bot_process = None
@@ -291,7 +293,7 @@ async def _load_upscaler_bsrgan(use_cpu: bool = False, tile_size: int = 256):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan events for FastAPI startup and shutdown"""
-    global _server_start_time
+    global _server_start_time, local_model_loader
     _server_start_time = datetime.now()
     
     logger.info("Starting I.R.I.S. Server...")
@@ -301,13 +303,95 @@ async def lifespan(app: FastAPI):
         # Apply torchvision compatibility patch for Real-ESRGAN
         _patch_torchvision_compat()
         
+        # Initialize local model loader
+        local_model_loader = LocalModelLoader()
+        
+        # Initialize upscaler routes with model loader
+        from src.api.routes.upscaler import init_upscaler_routes
+        init_upscaler_routes(local_model_loader)
+        
+        # Scan and load local models
+        models = local_model_loader.scan_local_models()
+        logger.info(f"Found {len(models['diffusion'])} diffusion models and {len(models['upscaler'])} upscaler models")
+        
+        # Load RealESRGAN models
+        await local_model_loader.load_realesrgan_models()
+        
+        # Detect device and show system information
+        logger.info("=" * 70)
+        logger.info("SYSTEM INFORMATION")
+        logger.info("=" * 70)
+        
+        # Show OS and Python version
+        import platform
+        import sys
+        os_name = platform.system()
+        if os_name == "Darwin":
+            os_name = "macOS"
+        logger.info(f"OS: {os_name} {platform.release()}")
+        logger.info(f"Python: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+        logger.info(f"PyTorch: {torch.__version__}")
+        
+        # Show CPU information
+        try:
+            import psutil
+            cpu_count = psutil.cpu_count(logical=True)
+            cpu_freq = psutil.cpu_freq()
+            ram = psutil.virtual_memory()
+            logger.info(f"CPU: {cpu_count} cores @ {cpu_freq.current / 1000:.2f} GHz" if cpu_freq else f"CPU: {cpu_count} cores")
+            logger.info(f"RAM: {ram.total / (1024**3):.1f} GB total, {ram.available / (1024**3):.1f} GB available")
+        except ImportError:
+            logger.warning("psutil not available - CPU/RAM info unavailable")
+        
         # Detect device
         pipeline_service.detect_device()
         
-        # Load default model
-        await pipeline_service.load_model("anime_kawai")
+        # Show GPU information
+        device_str = str(pipeline_service.device)
+        if "privateuseone" in device_str or "dml" in device_str.lower():
+            # DirectML device
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ['wmic', 'path', 'win32_VideoController', 'get', 'name'],
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+                gpu_lines = [line.strip() for line in result.stdout.split('\n') if line.strip() and line.strip() != 'Name']
+                if gpu_lines:
+                    gpu_name = gpu_lines[0]
+                    logger.info(f"GPU: {gpu_name} (DirectML)")
+                    
+                    # Try to get VRAM info from DirectML
+                    try:
+                        import torch_directml
+                        # DirectML doesn't expose VRAM directly, estimate from system
+                        logger.info(f"Compute Device: DirectML (privateuseone:0)")
+                    except:
+                        pass
+            except:
+                logger.info(f"GPU: DirectML device detected")
+        elif device_str == "cuda":
+            try:
+                gpu_name = torch.cuda.get_device_name(0)
+                vram_total = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                logger.info(f"GPU: {gpu_name}")
+                logger.info(f"VRAM: {vram_total:.1f} GB")
+            except:
+                logger.info(f"GPU: CUDA device")
+        elif device_str == "cpu":
+            logger.info("GPU: None (CPU mode)")
+        else:
+            logger.info(f"Compute Device: {device_str}")
         
-        # Pre-load Real-ESRGAN upscaler
+        logger.info(f"Precision: {pipeline_service.dtype}")
+        logger.info("=" * 70)
+        
+        # Models will be loaded on-demand when generating images
+        logger.info("Models will be loaded on-demand (lazy loading)")
+        
+        # Pre-load Real-ESRGAN upscaler (legacy support)
         await _load_upscaler()
         
         # Setup queue callback
@@ -366,10 +450,11 @@ except ImportError:
 
 # Mount static directories
 try:
-    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
-    logger.success(f"Assets mounted: {ASSETS_DIR}")
+    # Don't mount /assets here - will be handled by React asset serving
+    # app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+    logger.success(f"Assets directory available: {ASSETS_DIR}")
 except Exception as e:
-    logger.warning(f"Failed to mount assets: {e}")
+    logger.warning(f"Assets directory issue: {e}")
 
 try:
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -393,6 +478,8 @@ app.include_router(queue.router)
 app.include_router(history.router)
 app.include_router(templates.router)
 app.include_router(admin.router)
+app.include_router(upscaler.router)
+app.include_router(settings.router)
 
 
 # ============ Exception Handlers ============
@@ -402,7 +489,6 @@ async def iris_exception_handler(request: Request, exc: IRISException):
     """Handle all I.R.I.S. custom exceptions"""
     status_codes = {
         "vram_exhausted": 507,
-        "nsfw_blocked": 422,
         "model_load_error": 503,
         "model_not_loaded": 503,
         "queue_full": 429,
@@ -416,9 +502,8 @@ async def iris_exception_handler(request: Request, exc: IRISException):
 @app.exception_handler(VRAMExhaustedError)
 async def vram_exception_handler(request: Request, exc: VRAMExhaustedError):
     """Handle VRAM exhaustion with cleanup"""
-    if pipeline_service.device == "cuda":
-        torch.cuda.empty_cache()
-        gc.collect()
+    # Use centralized memory cleanup
+    clear_cache("cuda", synchronize=True)
     return JSONResponse(
         status_code=507,
         content={
@@ -428,71 +513,75 @@ async def vram_exception_handler(request: Request, exc: VRAMExhaustedError):
     )
 
 
-@app.exception_handler(NSFWContentError)
-async def nsfw_exception_handler(request: Request, exc: NSFWContentError):
-    """Handle NSFW content detection"""
-    return JSONResponse(
-        status_code=422,
-        content={
-            **exc.to_dict(),
-            "category": exc.category
-        }
-    )
-
-
-# ============ Page Routes ============
-# Only serve HTML frontend if IRIS_NO_HTML is not set
-
-if not os.getenv("IRIS_NO_HTML"):
-    @app.get("/")
-    async def root():
-        """Serve index page"""
-        return FileResponse(FRONTEND_DIR / "index.html")
-
-    @app.get("/generate")
-    async def generate_page():
-        """Serve generate page"""
-        return FileResponse(FRONTEND_DIR / "generate.html")
-
-    @app.get("/gallery")
-    async def gallery_page():
-        """Serve gallery page"""
-        return FileResponse(FRONTEND_DIR / "gallery.html")
-
-    @app.get("/settings")
-    async def settings_page():
-        """Serve settings page"""
-        return FileResponse(FRONTEND_DIR / "settings.html")
-else:
-    logger.info("HTML frontend disabled (IRIS_NO_HTML set)")
-
-
 # ============ React Frontend Routes ============
-# Serve React production build if IRIS_SERVE_REACT is set
+# Serve React production build
 
-if os.getenv("IRIS_SERVE_REACT"):
-    if REACT_DIST_DIR.exists():
-        # Mount React static assets
-        app.mount("/app/assets", StaticFiles(directory=str(REACT_DIST_DIR / "assets")), name="react-assets")
-        logger.success(f"React frontend mounted at /app")
+# Check if React frontend should be served (controlled by IRIS_SERVE_REACT env var)
+serve_react = os.environ.get("IRIS_SERVE_REACT", "0") == "1"
+
+if serve_react and REACT_DIST_DIR.exists():
+    logger.info(f"React frontend enabled, serving from {REACT_DIST_DIR}")
+    
+    # Serve assets - prioritize React assets, fallback to general assets
+    @app.get("/assets/{asset_path:path}")
+    async def serve_assets(asset_path: str):
+        """Serve assets - React assets first, then general assets"""
+        # Try React assets first
+        react_asset = REACT_DIST_DIR / "assets" / asset_path
+        if react_asset.exists():
+            # Determine MIME type based on extension
+            if asset_path.endswith('.js'):
+                return FileResponse(react_asset, media_type="application/javascript")
+            elif asset_path.endswith('.css'):
+                return FileResponse(react_asset, media_type="text/css")
+            elif asset_path.endswith('.ico'):
+                return FileResponse(react_asset, media_type="image/x-icon")
+            else:
+                return FileResponse(react_asset)
         
-        @app.get("/app/{full_path:path}")
-        async def serve_react_app(full_path: str = ""):
-            """Serve React SPA - all routes return index.html"""
+        # Fallback to general assets
+        general_asset = ASSETS_DIR / asset_path
+        if general_asset.exists():
+            if asset_path.endswith('.ico'):
+                return FileResponse(general_asset, media_type="image/x-icon")
+            else:
+                return FileResponse(general_asset)
+        
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # Serve React app root
+    @app.get("/")
+    async def serve_react_root():
+        """Serve React SPA root"""
+        index_path = REACT_DIST_DIR / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="React build not found")
+    
+    # Serve React app for specific frontend routes (not catch-all)
+    @app.get("/{path}")
+    async def serve_react_pages(path: str):
+        """Serve React SPA for frontend routes"""
+        # Only serve React for known frontend routes
+        frontend_routes = ['generate', 'gallery', 'upscaler', 'dashboard', 'settings', 'admin']
+        
+        if path in frontend_routes:
             index_path = REACT_DIST_DIR / "index.html"
             if index_path.exists():
                 return FileResponse(index_path)
-            raise HTTPException(status_code=404, detail="React build not found")
         
-        @app.get("/app")
-        async def serve_react_root():
-            """Serve React SPA root"""
-            index_path = REACT_DIST_DIR / "index.html"
-            if index_path.exists():
-                return FileResponse(index_path)
-            raise HTTPException(status_code=404, detail="React build not found")
-    else:
-        logger.warning(f"React build not found at {REACT_DIST_DIR} - run 'npm run build' in frontend-react/")
+        # For unknown routes, return 404
+        raise HTTPException(status_code=404, detail="Not found")
+elif serve_react and not REACT_DIST_DIR.exists():
+    logger.warning(f"React build not found at {REACT_DIST_DIR}")
+    logger.info("Run 'npm run build' in frontend/ to build React frontend")
+    
+    # Fallback: serve general assets only
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+else:
+    logger.info("API-only mode - React frontend disabled")
+    # In API-only mode, serve general assets only
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 
 @app.get("/favicon.ico")
@@ -534,28 +623,77 @@ async def generate_image_internal(
     negative_prompt: str = "",
     width: int = 512,
     height: int = 768,
-    steps: int = 35,
-    cfg_scale: float = 10.0,
+    steps: int = None,
+    cfg_scale: float = None,
     seed: int = -1,
     style: str = "anime_kawai",
-    nsfw_filter_enabled: bool = True,
     progress_callback=None
 ) -> dict:
     """Internal generation function with optional progress callback"""
     logger.info(f"generate_image_internal called with prompt: {prompt[:50]}...")
     
-    if pipeline_service.pipe is None:
-        logger.error("Pipeline is None - model not loaded!")
-        raise ModelNotLoadedError()
+    # Lazy loading: Load model on-demand if not loaded or different model requested
+    if pipeline_service.pipe is None or pipeline_service.current_model != style:
+        logger.info(f"Loading model on-demand: {style}")
+        try:
+            await pipeline_service.load_model(style)
+        except Exception as e:
+            logger.error(f"Failed to load model {style}: {e}")
+            raise ModelNotLoadedError(f"Failed to load model {style}: {e}")
+    
+    # Get model configuration for recommended parameters
+    from src.api.services.pipeline import MODEL_CONFIGS
+    # Use first available model as fallback if style not found
+    fallback_model = next(iter(MODEL_CONFIGS.keys())) if MODEL_CONFIGS else None
+    model_config = MODEL_CONFIGS.get(style, MODEL_CONFIGS.get(fallback_model) if fallback_model else {})
+    
+    # Apply recommended parameters if not specified by user
+    if steps is None:
+        steps = model_config["recommended_steps"]
+        logger.info(f"Using recommended steps for {style}: {steps}")
+    else:
+        logger.info(f"User specified steps: {steps} (overriding recommended: {model_config['recommended_steps']})")
+    
+    if cfg_scale is None:
+        cfg_scale = model_config["recommended_cfg"]
+        logger.info(f"Using recommended CFG scale for {style}: {cfg_scale}")
+    else:
+        logger.info(f"User specified CFG scale: {cfg_scale} (overriding recommended: {model_config['recommended_cfg']})")
+    
+    # Parameter validation warnings
+    parameter_warnings = []
+    
+    # Handle negative prompt based on model support
+    # Only pass negative_prompt if model supports it AND field is non-empty
+    supports_negative = model_config.get("supports_negative_prompt", True)
+    effective_negative_prompt = negative_prompt if (supports_negative and negative_prompt) else ""
+    
+    if not supports_negative and negative_prompt:
+        warning_msg = f"Model {style} does not support negative prompts. Ignoring negative_prompt."
+        logger.warning(warning_msg)
+        parameter_warnings.append(warning_msg)
+    
+    # Check if current model is FLUX
+    is_flux = pipeline_service.current_model and "flux" in pipeline_service.current_model.lower()
+    
+    # Validate parameters for FLUX models (warn but don't adjust)
+    if is_flux:
+        logger.info("FLUX model detected - validating parameters")
+        
+        # Warn if steps > 50 for FLUX models
+        if steps > 50:
+            warning_msg = f"FLUX models work best with 4 steps. You specified {steps} steps, which may not improve quality and will be slower. Consider using 4 steps for optimal results."
+            logger.warning(warning_msg)
+            parameter_warnings.append(warning_msg)
+        
+        # Warn if cfg_scale > 2.0 for FLUX models
+        if cfg_scale > 2.0:
+            warning_msg = f"FLUX models work best with guidance_scale=1.0. You specified {cfg_scale}, which may produce suboptimal results. Consider using 1.0 for optimal results."
+            logger.warning(warning_msg)
+            parameter_warnings.append(warning_msg)
     
     # Update bot status - generating
     update_bot_status_file("generating", prompt[:50])
-    
-    # NSFW check
-    nsfw_check = check_nsfw_prompt(prompt, nsfw_filter_enabled)
-    if nsfw_check["is_unsafe"]:
-        update_bot_status_file("idle")
-        raise NSFWContentError(category=nsfw_check.get("category", "explicit"))
     
     # Validate parameters
     if width < 256 or width > 4096:
@@ -581,8 +719,9 @@ async def generate_image_internal(
                 available_gb=vram_check.get("available_vram_gb", 0)
             )
     else:
-        # Still apply safe params
-        width, height, steps = pipeline_service.get_safe_params(width, height, steps)
+        # Still apply safe params (but not for FLUX)
+        if not is_flux:
+            width, height, steps = pipeline_service.get_safe_params(width, height, steps)
     
     # Prepare seed
     if seed is None or seed == -1:
@@ -591,13 +730,28 @@ async def generate_image_internal(
     generator = torch.Generator(pipeline_service.device).manual_seed(seed)
     logger.info(f"Generator created with seed: {seed}")
     
-    # Build prompt
-    if style == "pixel_art":
+    # Build prompt - handle negative prompt based on model support
+    # For FLUX models, negative prompts are not supported
+    # For SDXL, we always need a valid negative prompt string (not empty)
+    if is_flux:
+        # FLUX doesn't need prompt engineering
+        full_prompt = prompt
+        neg_prompt = None  # FLUX doesn't use negative prompts
+    elif style == "pixel_art":
         full_prompt = f"pixel art, 16-bit style, {prompt}"
-        neg_prompt = f"smooth, anti-aliased, {negative_prompt}"
+        neg_prompt = f"smooth, anti-aliased, {negative_prompt}" if negative_prompt else "smooth, anti-aliased"
     else:
         full_prompt = f"masterpiece, best quality, {prompt}"
-        neg_prompt = negative_prompt or "lowres, bad anatomy, worst quality"
+        # Always provide a valid negative prompt for SDXL models to avoid None errors
+        if model_config.get("model_type") == "sdxl":
+            # SDXL requires a valid negative prompt
+            neg_prompt = negative_prompt if negative_prompt else "lowres, bad anatomy, worst quality"
+        elif supports_negative and not negative_prompt:
+            neg_prompt = "lowres, bad anatomy, worst quality"
+        elif not supports_negative:
+            neg_prompt = None  # Model doesn't support negative prompts
+        else:
+            neg_prompt = negative_prompt
     
     start_time = time.time()
     logger.info(f"Starting generation: {width}x{height}, {steps} steps, cfg={cfg_scale}")
@@ -635,13 +789,16 @@ async def generate_image_internal(
         # Prepare kwargs with callback if supported
         pipe_kwargs = {
             "prompt": full_prompt,
-            "negative_prompt": neg_prompt,
             "num_inference_steps": steps,
             "guidance_scale": cfg_scale,
             "width": width,
             "height": height,
             "generator": generator
         }
+        
+        # Add negative_prompt only for non-FLUX models and when supported
+        if not is_flux and neg_prompt is not None:
+            pipe_kwargs["negative_prompt"] = neg_prompt
         
         # Add callback for progress updates (diffusers >= 0.25.0)
         if progress_callback:
@@ -700,7 +857,7 @@ async def generate_image_internal(
     image.save(buffered, format="PNG")
     img_str = base64.b64encode(buffered.getvalue()).decode()
     
-    return {
+    response = {
         "success": True,
         "image": f"data:image/png;base64,{img_str}",
         "seed": seed,
@@ -709,6 +866,12 @@ async def generate_image_internal(
         "width": width,
         "height": height
     }
+    
+    # Add parameter warnings to response metadata if any
+    if parameter_warnings:
+        response["warnings"] = parameter_warnings
+    
+    return response
 
 
 # ============ WebSocket Generation ============
@@ -731,30 +894,30 @@ async def websocket_generate(websocket: WebSocket):
             logger.info("Sent 'started' message to client")
             
             try:
-                # NSFW check
-                logger.info("Checking NSFW filter...")
-                nsfw_check = check_nsfw_prompt(
-                    request_data.get("prompt", ""),
-                    request_data.get("nsfw_filter_enabled", True)
-                )
-                logger.info(f"NSFW check result: {nsfw_check}")
-                if nsfw_check["is_unsafe"]:
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": nsfw_check["message"],
-                        "nsfw_blocked": True
-                    })
-                    continue
-                
-                # Progress callback for real-time updates
+                # Progress callback for real-time updates (both download and generation)
                 async def send_progress(progress_data):
                     try:
-                        await websocket.send_json({
-                            "type": "progress",
-                            **progress_data
-                        })
+                        # Determine message type based on progress_data
+                        msg_type = progress_data.get('type', 'progress')
+                        
+                        # For download messages, send them directly
+                        if msg_type in ['download_start', 'download_progress', 'download_complete', 'download_error', 'download_waiting']:
+                            await websocket.send_json(progress_data)
+                        else:
+                            # For generation progress, wrap in progress type
+                            await websocket.send_json({
+                                "type": "progress",
+                                **progress_data
+                            })
                     except Exception:
                         pass  # Client may have disconnected
+                
+                # Load model if different from current (with download progress)
+                # Normalize model ID: convert hyphens to underscores for backend compatibility
+                requested_model = request_data.get("style", "anime_kawai").replace("-", "_")
+                if pipeline_service.current_model != requested_model:
+                    logger.info(f"Loading model {requested_model}...")
+                    await pipeline_service.load_model(requested_model, progress_callback=send_progress)
                 
                 # Generate with progress callback
                 logger.info("Starting generate_image_internal...")
@@ -764,11 +927,10 @@ async def websocket_generate(websocket: WebSocket):
                     negative_prompt=request_data.get("negative_prompt", ""),
                     width=request_data.get("width", 512),
                     height=request_data.get("height", 768),
-                    steps=request_data.get("steps", 35),
-                    cfg_scale=request_data.get("cfg_scale", 10.0),
+                    steps=request_data.get("steps"),
+                    cfg_scale=request_data.get("cfg_scale"),
                     seed=request_data.get("seed", -1),
                     style=request_data.get("style", "anime_kawai"),
-                    nsfw_filter_enabled=request_data.get("nsfw_filter_enabled", True),
                     progress_callback=send_progress
                 )
                 
@@ -843,11 +1005,10 @@ class GenerationRequest(BaseModel):
     negative_prompt: Optional[str] = ""
     style: str = "anime_kawai"
     seed: Optional[int] = -1
-    steps: int = 35
-    cfg_scale: float = 10.0
+    steps: Optional[int] = None
+    cfg_scale: Optional[float] = None
     width: int = 512
     height: int = 768
-    nsfw_filter_enabled: Optional[bool] = True
 
 
 # Try to import limiter for rate limiting
@@ -874,11 +1035,10 @@ async def api_generate(request: GenerationRequest, req: Request):
             steps=request.steps,
             cfg_scale=request.cfg_scale,
             seed=request.seed,
-            style=request.style,
-            nsfw_filter_enabled=request.nsfw_filter_enabled
+            style=request.style
         )
         return result
-    except (ModelNotLoadedError, NSFWContentError, VRAMExhaustedError, 
+    except (ModelNotLoadedError, VRAMExhaustedError, 
             InvalidParameterError, GenerationError) as e:
         # Custom exceptions are handled by exception handlers
         raise e
@@ -1024,8 +1184,6 @@ app_settings = {
     "dramEnabled": False,
     "vramThreshold": 6,
     "maxDram": 16,
-    "nsfwEnabled": True,
-    "nsfwStrength": 2,
     "discordEnabled": False
 }
 
@@ -1037,11 +1195,6 @@ def load_settings_from_file():
             with open(SETTINGS_FILE, 'r') as f:
                 app_settings.update(json.load(f))
             logger.info("Settings loaded from file")
-            
-            # Apply NSFW filter settings
-            from src.api.services.nsfw_filter import set_filter_enabled, set_filter_strength
-            set_filter_enabled(app_settings.get("nsfwEnabled", True))
-            set_filter_strength(app_settings.get("nsfwStrength", 2))
     except Exception as e:
         logger.warning(f"Could not load settings: {e}")
 
@@ -1062,8 +1215,6 @@ class SettingsRequest(BaseModel):
     dramEnabled: Optional[bool] = False
     vramThreshold: Optional[int] = 6
     maxDram: Optional[int] = 16
-    nsfwEnabled: Optional[bool] = True
-    nsfwStrength: Optional[int] = 2
     discordEnabled: Optional[bool] = False
 
 
@@ -1103,8 +1254,6 @@ async def save_settings(request: SettingsRequest):
         "dramEnabled": request.dramEnabled,
         "vramThreshold": request.vramThreshold,
         "maxDram": request.maxDram,
-        "nsfwEnabled": request.nsfwEnabled,
-        "nsfwStrength": request.nsfwStrength,
         "discordEnabled": request.discordEnabled
     })
     
@@ -1116,13 +1265,6 @@ async def save_settings(request: SettingsRequest):
         logger.info(f"DRAM extension enabled (threshold: {request.vramThreshold}GB, max: {request.maxDram}GB)")
     else:
         pipeline_service.dram_config["enabled"] = False
-    
-    # Apply NSFW filter settings
-    from src.api.services.nsfw_filter import set_filter_enabled, set_filter_strength
-    set_filter_enabled(request.nsfwEnabled)
-    set_filter_strength(request.nsfwStrength)
-    strength_names = {1: "Relaxed", 2: "Standard", 3: "Strict"}
-    logger.info(f"NSFW filter: {'Enabled' if request.nsfwEnabled else 'Disabled'} (strength: {strength_names.get(request.nsfwStrength, 'Standard')})")
     
     # Apply Discord Bot setting - start/stop bot when setting changes
     if discord_changed:
@@ -1306,8 +1448,14 @@ async def create_variation(request: VariationRequest):
     if not image_path.exists():
         raise HTTPException(status_code=404, detail="Image not found")
     
+    # Lazy loading: Load default model if not loaded
     if pipeline_service.pipe is None:
-        raise ModelNotLoadedError()
+        logger.info("Loading default model on-demand for variation")
+        try:
+            await pipeline_service.load_model("anime_kawai")
+        except Exception as e:
+            logger.error(f"Failed to load model: {e}")
+            raise ModelNotLoadedError(f"Failed to load model: {e}")
     
     try:
         # Load original image
@@ -1557,44 +1705,78 @@ async def _upscale_with_smart_vram(img, scale: int, method_name: str, loader_fun
     """Smart upscaling with VRAM management and fallbacks
     
     Strategy:
-    1. Try with tiled processing on GPU (default)
-    2. If OOM: Free VRAM (move diffusion model to CPU) and retry with smaller tiles
-    3. If still OOM: Use CPU mode for upscaling
-    4. If all fails: Fall back to Lanczos
+    1. Try WITHOUT tiling first (tile=0) for best quality
+    2. If OOM: Try with large tiles (512px)
+    3. If still OOM: Free VRAM and retry with medium tiles (256px)
+    4. If still OOM: Use CPU mode
+    5. If all fails: Fall back to Lanczos
     """
     import cv2
     from PIL import Image
     
+    # Handle alpha channel - convert RGBA to RGB
+    if img.mode == 'RGBA':
+        logger.debug("Converting RGBA to RGB for upscaling")
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        background.paste(img, mask=img.split()[3])
+        img = background
+    elif img.mode != 'RGB':
+        logger.debug(f"Converting {img.mode} to RGB for upscaling")
+        img = img.convert('RGB')
+    
     img_array = np.array(img)
+    
+    # Validate input
+    if len(img_array.shape) != 3 or img_array.shape[2] != 3:
+        raise ValueError(f"Expected RGB image with 3 channels, got shape {img_array.shape}")
+    
     img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
     
-    # Strategy 1: Try with default tiled processing (256px tiles)
+    # Strategy 1: Try WITHOUT tiling (best quality, no tile artifacts)
     try:
+        # ALWAYS reload upscaler with tile=0 for best quality
+        await loader_func(use_cpu=False, tile_size=0)  # tile=0 means no tiling
         upscaler = get_upscaler_func()
-        if not upscaler:
-            await loader_func(use_cpu=False, tile_size=256)
-            upscaler = get_upscaler_func()
         
         if upscaler:
+            logger.info(f"Attempting {method_name} without tiling (best quality)...")
             output, _ = upscaler.enhance(img_array, outscale=scale)
             output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
             return Image.fromarray(output), method_name
             
     except RuntimeError as e:
         if "out of memory" in str(e).lower() or "CUDA" in str(e):
-            logger.warning(f"{method_name} OOM with tiles, trying with VRAM cleanup...")
+            logger.warning(f"{method_name} OOM without tiling, trying with large tiles...")
         else:
             raise
     
-    # Strategy 2: Free VRAM and retry with smaller tiles
+    # Strategy 2: Try with large tiles (512px) - reduces tile artifacts
     try:
-        _free_vram_for_upscaling()
-        
-        # Reload upscaler with smaller tiles
-        await loader_func(use_cpu=False, tile_size=128)
+        await loader_func(use_cpu=False, tile_size=512)
         upscaler = get_upscaler_func()
         
         if upscaler:
+            logger.info(f"Attempting {method_name} with 512px tiles...")
+            output, _ = upscaler.enhance(img_array, outscale=scale)
+            output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
+            return Image.fromarray(output), method_name
+            
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower() or "CUDA" in str(e):
+            logger.warning(f"{method_name} OOM with 512px tiles, trying with VRAM cleanup...")
+        else:
+            raise
+    
+    # Strategy 3: Free VRAM and retry with medium tiles (256px)
+    try:
+        _free_vram_for_upscaling()
+        
+        # Reload upscaler with medium tiles
+        await loader_func(use_cpu=False, tile_size=256)
+        upscaler = get_upscaler_func()
+        
+        if upscaler:
+            logger.info(f"Attempting {method_name} with 256px tiles after VRAM cleanup...")
             output, _ = upscaler.enhance(img_array, outscale=scale)
             output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
             return Image.fromarray(output), method_name
@@ -1605,7 +1787,7 @@ async def _upscale_with_smart_vram(img, scale: int, method_name: str, loader_fun
         else:
             raise
     
-    # Strategy 3: Use CPU mode (slower but guaranteed to work)
+    # Strategy 4: Use CPU mode (slower but guaranteed to work)
     try:
         await loader_func(use_cpu=True, tile_size=0)
         upscaler = get_upscaler_func()
@@ -1619,11 +1801,55 @@ async def _upscale_with_smart_vram(img, scale: int, method_name: str, loader_fun
     except Exception as e:
         logger.warning(f"{method_name} CPU mode failed: {e}")
     
-    # Strategy 4: Fall back to Lanczos
+    # Strategy 5: Fall back to Lanczos
     logger.warning(f"All {method_name} attempts failed, using Lanczos fallback")
     new_width = img.width * scale
     new_height = img.height * scale
     return img.resize((new_width, new_height), Image.Resampling.LANCZOS), "lanczos"
+
+
+def _has_black_artifacts_server(img_array: np.ndarray, threshold: float = 0.3) -> bool:
+    """
+    Detect black rectangular artifacts in upscaled image.
+    
+    Args:
+        img_array: Image array (H, W, C) with values 0-255
+        threshold: Fraction of black pixels to consider as artifact (0.0-1.0)
+    
+    Returns:
+        True if significant black artifacts detected
+    """
+    import cv2
+    
+    # Convert to grayscale for analysis
+    if len(img_array.shape) == 3 and img_array.shape[2] == 3:
+        gray = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img_array
+    
+    # Count pixels that are completely black (value < 10)
+    black_pixels = np.sum(gray < 10)
+    total_pixels = gray.size
+    black_ratio = black_pixels / total_pixels
+    
+    # Check for large contiguous black regions (likely artifacts)
+    _, binary = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY_INV)
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Check if any contour is suspiciously large (>5% of image)
+    image_area = gray.shape[0] * gray.shape[1]
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area > image_area * 0.05:  # 5% of image
+            logger.warning(f"Large black region detected: {area / image_area * 100:.1f}% of image")
+            return True
+    
+    # Check overall black ratio
+    if black_ratio > threshold:
+        logger.warning(f"High black pixel ratio: {black_ratio * 100:.1f}%")
+        return True
+    
+    return False
 
 
 # ============ Server Control ============

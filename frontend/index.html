@@ -1,203 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/assets/fav.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <meta name="theme-color" content="#8b5cf6" />
+    <meta name="description" content="I.R.I.S. - AI-powered image generation. Create stunning artwork with artificial intelligence." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="I.R.I.S." />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/assets/fav.ico" />
     <title>I.R.I.S. - Intelligent Rendering & Image Synthesis</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/x-icon" href="/assets/fav.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/index.css">
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        iris: {
-                            bg: '#0a0a0f',
-                            panel: '#12121a',
-                            card: '#1a1a24',
-                            border: 'rgba(255, 255, 255, 0.08)',
-                            accent: '#8b5cf6',
-                            accentLight: '#a78bfa',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-</head>
-<body class="selection:bg-purple-500/30 selection:text-purple-100">
-
-    <div class="relative min-h-screen flex flex-col">
-        
-        <!-- Navbar -->
-        <nav class="container mx-auto px-6 py-5 flex justify-between items-center relative z-20">
-            <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/25">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                </div>
-                <span class="text-xl font-bold tracking-tight text-white">I.R.I.S.</span>
-            </div>
-            
-            <div class="flex gap-6">
-                <a href="/gallery" class="text-sm font-medium text-zinc-400 hover:text-white transition-colors py-2">Gallery</a>
-                <a href="/settings" class="text-sm font-medium text-zinc-400 hover:text-white transition-colors py-2">Settings</a>
-                <a href="https://github.com/KaiTooast/iris" target="_blank" class="text-sm font-medium text-zinc-400 hover:text-white transition-colors py-2">GitHub</a>
-            </div>
-        </nav>
-
-        <!-- Hero -->
-        <main class="flex-1 container mx-auto px-6 flex flex-col items-center justify-center relative z-10 text-center py-16">
-            
-            <div class="hero-glow"></div>
-
-            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full liquid-glass text-xs font-medium text-iris-accentLight mb-8 animate-fade-in-up font-mono">
-                <span class="w-2 h-2 rounded-full bg-iris-accent animate-pulse"></span>
-                v1.1.0 Stable
-            </div>
-
-            <h1 class="text-5xl md:text-7xl font-bold mb-6 tracking-tight max-w-4xl mx-auto leading-tight">
-                Create Stunning <br />
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 animate-gradient">AI Art Locally</span>
-            </h1>
-
-            <p class="text-lg text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed font-light">
-                Intelligent Rendering & Image Synthesis. Unleash your creativity with a powerful, free, and private AI generation suite running directly on your hardware.
-            </p>
-
-            <div class="flex flex-col sm:flex-row gap-4 w-full justify-center">
-                <a href="/generate" class="btn-primary px-8 py-4 rounded-xl text-lg font-bold flex items-center justify-center gap-2 group shadow-lg shadow-purple-900/40">
-                    <span>Start Creating</span>
-                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                </a>
-                <a href="/gallery" class="btn-secondary px-8 py-4 rounded-xl text-lg font-medium flex items-center justify-center gap-2">
-                    <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    <span>View Gallery</span>
-                </a>
-            </div>
-
-            <!-- Stats -->
-            <div class="mt-16 glass-panel p-8 w-full max-w-5xl grid grid-cols-2 md:grid-cols-4 gap-8">
-                <div class="text-center">
-                    <div class="text-4xl font-bold stat-value mb-1 font-mono" id="totalGenerated">0</div>
-                    <div class="text-xs text-zinc-500 uppercase tracking-wide font-semibold">Images Created</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-4xl font-bold stat-value mb-1 font-mono">12+</div>
-                    <div class="text-xs text-zinc-500 uppercase tracking-wide font-semibold">Art Models</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-4xl font-bold stat-value mb-1 font-mono">4x</div>
-                    <div class="text-xs text-zinc-500 uppercase tracking-wide font-semibold">AI Upscaling</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-4xl font-bold stat-value mb-1 font-mono">100%</div>
-                    <div class="text-xs text-zinc-500 uppercase tracking-wide font-semibold">Offline & Free</div>
-                </div>
-            </div>
-        </main>
-
-        <!-- Features -->
-        <section class="container mx-auto px-6 py-20 relative z-10">
-            <h2 class="text-2xl font-bold mb-10 text-center text-white">Power at your fingertips</h2>
-            
-            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="feature-card">
-                    <div class="icon-box">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-2">Fine-Tuned Models</h3>
-                    <p class="text-sm text-zinc-400 leading-relaxed">
-                        Switch between Anime, Realistic, and Abstract styles with optimized presets.
-                    </p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="icon-box">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-2">Lightning Fast</h3>
-                    <p class="text-sm text-zinc-400 leading-relaxed">
-                        Optimized pipeline for quick iterations and real-time prompt refinement.
-                    </p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="icon-box">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
-                    </div>
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-lg font-bold text-white">Upscaling</h3>
-                        <span class="text-[10px] bg-iris-accent/20 text-iris-accentLight px-2 py-0.5 rounded border border-iris-accent/30 font-mono">New</span>
-                    </div>
-                    <p class="text-sm text-zinc-400 leading-relaxed">
-                        Enhance details up to 4x using advanced neural network upscalers.
-                    </p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="icon-box">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-2">Full Control</h3>
-                    <p class="text-sm text-zinc-400 leading-relaxed">
-                        Fine-tune Seed, CFG Scale, Steps, and Samplers for perfect results.
-                    </p>
-                </div>
-            </div>
-        </section>
-
-        <!-- Footer -->
-        <footer class="border-t border-white/5 bg-iris-panel/50 mt-auto">
-            <div class="container mx-auto px-6 py-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div class="text-xs text-zinc-600">
-                    &copy; 2024 I.R.I.S. Project. Local AI Rendering.
-                </div>
-                <div class="text-xs text-zinc-600 font-mono bg-white/5 px-3 py-1.5 rounded-lg border border-white/5" id="versionInfo">
-                    Checking system...
-                </div>
-            </div>
-        </footer>
-    </div>
-
-    <script>
-        async function loadStats() {
-            try {
-                const response = await fetch('/api/output-gallery');
-                const data = await response.json();
-                const count = data.images ? data.images.length : 0;
-                const el = document.getElementById('totalGenerated');
-                let current = 0;
-                const increment = Math.ceil(count / 20);
-                const timer = setInterval(() => {
-                    current += increment;
-                    if (current >= count) { current = count; clearInterval(timer); }
-                    el.textContent = current;
-                }, 50);
-            } catch (e) {
-                document.getElementById('totalGenerated').textContent = "0";
-            }
-        }
-        
-        async function loadVersionInfo() {
-            try {
-                const response = await fetch('/api/version');
-                const data = await response.json();
-                document.getElementById('versionInfo').textContent = `PyTorch ${data.pytorch_version} • CUDA ${data.cuda_version}`;
-            } catch (e) {
-                document.getElementById('versionInfo').textContent = 'System Ready';
-            }
-        }
-        
-        document.addEventListener('DOMContentLoaded', () => { loadStats(); loadVersionInfo(); });
-    </script>
-</body>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

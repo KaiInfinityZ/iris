@@ -1,0 +1,393 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-tertiary: #1a1a24;
+  --bg-elevated: #22222e;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(139, 92, 246, 0.4);
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --accent-primary: #8b5cf6;
+  --accent-secondary: #a78bfa;
+  --accent-glow: rgba(139, 92, 246, 0.25);
+}
+
+body {
+  background-color: var(--bg-primary);
+  background-image: 
+    radial-gradient(ellipse at 20% 50%, rgba(139, 92, 246, 0.08), transparent 40%),
+    radial-gradient(ellipse at 80% 20%, rgba(99, 102, 241, 0.06), transparent 40%),
+    radial-gradient(ellipse at 50% 80%, rgba(168, 85, 247, 0.04), transparent 40%);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { 
+  background: rgba(255, 255, 255, 0.1); 
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* Selection */
+::selection {
+  background: rgba(139, 92, 246, 0.3);
+  color: #e9d5ff;
+}
+
+/* Glass Panel */
+@layer components {
+  .glass-panel {
+    @apply bg-iris-panel/70 backdrop-blur-xl border border-iris-border rounded-2xl;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .liquid-glass {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(255, 255, 255, 0.02) 50%,
+      rgba(255, 255, 255, 0.06) 100%
+    );
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  .liquid-glass-input {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.01) 50%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .liquid-glass-subtle {
+    background: linear-gradient(
+      135deg,
+      rgba(139, 92, 246, 0.12) 0%,
+      rgba(99, 102, 241, 0.06) 50%,
+      rgba(139, 92, 246, 0.12) 100%
+    );
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    box-shadow: 
+      0 4px 20px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 0 30px rgba(139, 92, 246, 0.1);
+  }
+
+  .btn-primary {
+    @apply relative overflow-hidden;
+    background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 50%, #6366f1 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 8px 40px rgba(139, 92, 246, 0.4), 0 0 80px rgba(139, 92, 246, 0.15);
+    transform: translateY(-3px);
+  }
+
+  .btn-secondary {
+    @apply bg-iris-card border border-iris-border text-zinc-400 transition-all;
+  }
+
+  .btn-secondary:hover {
+    @apply bg-iris-panel border-iris-accent text-white;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .feature-card {
+    @apply bg-iris-panel border border-iris-border rounded-2xl p-8 transition-all relative overflow-hidden;
+  }
+
+  .feature-card:hover {
+    @apply -translate-y-2;
+    border-color: rgba(139, 92, 246, 0.3);
+    box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.5), 0 0 40px var(--accent-glow);
+  }
+
+  .icon-box {
+    @apply w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.1));
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    color: #a78bfa;
+  }
+
+  .stat-value {
+    background: linear-gradient(135deg, #e879f9 0%, #8b5cf6 50%, #6366f1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-glow {
+    @apply absolute pointer-events-none;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: pulse-glow 10s ease-in-out infinite;
+  }
+
+  .checkerboard-bg {
+    background-color: var(--bg-primary);
+    background-image:
+      linear-gradient(45deg, var(--bg-secondary) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--bg-secondary) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--bg-secondary) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--bg-secondary) 75%);
+    background-size: 24px 24px;
+    background-position: 0 0, 0 12px, 12px -12px, -12px 0px;
+  }
+
+  .aspect-btn {
+    @apply border border-iris-border rounded-lg aspect-square flex flex-col items-center justify-center transition-all;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0.01) 50%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
+    backdrop-filter: blur(8px);
+    color: var(--text-muted);
+  }
+
+  .aspect-btn:hover {
+    border-color: var(--border-hover);
+    color: var(--text-secondary);
+    transform: translateY(-1px);
+  }
+
+  .aspect-btn.active {
+    border-color: var(--accent-primary);
+    background: linear-gradient(
+      135deg,
+      rgba(139, 92, 246, 0.2) 0%,
+      rgba(99, 102, 241, 0.15) 50%,
+      rgba(139, 92, 246, 0.2) 100%
+    );
+    color: var(--text-primary);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .image-card {
+    @apply aspect-square rounded-xl overflow-hidden border border-iris-border bg-iris-panel relative cursor-pointer transition-all;
+  }
+
+  .image-card:hover {
+    @apply -translate-y-1 scale-[1.02];
+    border-color: rgba(139, 92, 246, 0.4);
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 30px var(--accent-glow);
+  }
+
+  .sidebar-label {
+    @apply text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5;
+  }
+
+  .filter-btn {
+    @apply px-4 py-2 rounded-lg text-xs font-medium bg-iris-card border border-iris-border text-zinc-500 transition-all cursor-pointer;
+  }
+
+  .filter-btn:hover {
+    @apply border-iris-accent/30 text-zinc-300;
+  }
+
+  .filter-btn.active {
+    @apply bg-iris-accent/15 border-iris-accent text-iris-accentLight;
+  }
+
+  .tab-btn {
+    @apply px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 relative transition-all;
+  }
+
+  .tab-btn::after {
+    content: '';
+    @apply absolute bottom-0 left-1/2 w-0 h-0.5 rounded-full transition-all;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    transform: translateX(-50%);
+  }
+
+  .tab-btn.active {
+    @apply text-white;
+  }
+
+  .tab-btn.active::after {
+    @apply w-full;
+  }
+}
+
+/* Range Slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-elevated);
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 50%, #6366f1 100%);
+  margin-top: -6px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(139, 92, 246, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.6);
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.15); }
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient 4s ease infinite;
+}
+
+/* Mobile-Specific Optimizations */
+@layer utilities {
+  /* Touch-friendly tap targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Disable double-tap zoom on buttons */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  /* Smooth scrolling on mobile */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Prevent text selection on UI elements */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Safe area insets for notch devices */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Disable callout on long-press (iOS) */
+  .no-callout {
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Mobile-specific overrides */
+@media (max-width: 767px) {
+  body {
+    /* Disable pull-to-refresh on Chrome mobile */
+    overscroll-behavior-y: contain;
+  }
+
+  /* Larger touch targets on mobile */
+  button, a, input[type="range"] {
+    min-height: 44px;
+  }
+
+  /* Hide scrollbars on mobile for cleaner look */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Bottom sheet handle */
+  .bottom-sheet-handle {
+    width: 48px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+  }
+
+  /* FAB shadow */
+  .fab-shadow {
+    box-shadow: 
+      0 8px 24px rgba(0, 0, 0, 0.4),
+      0 0 40px rgba(139, 92, 246, 0.3);
+  }
+}
+
+/* Prevent zoom on input focus (iOS Safari) */
+@media screen and (max-width: 767px) {
+  input[type="text"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* PWA display mode */
+@media (display-mode: standalone) {
+  body {
+    /* Extra padding for status bar when in standalone mode */
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-width: 767px) and (orientation: landscape) {
+  .mobile-nav {
+    height: 48px;
+  }
+
+  .mobile-top-bar {
+    height: 48px;
+  }
+}

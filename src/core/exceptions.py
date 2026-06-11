@@ -42,17 +42,6 @@ class VRAMExhaustedError(IRISException):
         self.available_gb = available_gb
 
 
-class NSFWContentError(IRISException):
-    """NSFW content detected in prompt"""
-    
-    def __init__(self, category: str = "explicit"):
-        super().__init__(
-            message="Content blocked: Explicit or inappropriate content detected",
-            code="nsfw_blocked"
-        )
-        self.category = category
-
-
 class GenerationError(IRISException):
     """Image generation failed"""
     
@@ -95,3 +84,68 @@ class ModelNotLoadedError(IRISException):
             message="No model loaded. Please wait for initialization or select a model.",
             code="model_not_loaded"
         )
+
+
+class ModelDownloadError(IRISException):
+    """Failed to download model from HuggingFace Hub"""
+    
+    def __init__(self, model_name: str, reason: str):
+        super().__init__(
+            message=f"Failed to download model '{model_name}': {reason}",
+            code="model_download_error"
+        )
+        self.model_name = model_name
+        self.reason = reason
+    
+    def to_dict(self) -> dict:
+        return {
+            "error": self.code,
+            "message": self.message,
+            "details": {
+                "model_name": self.model_name,
+                "reason": self.reason
+            }
+        }
+
+
+class AuthenticationError(IRISException):
+    """HuggingFace authentication required for gated model"""
+    
+    def __init__(self, model_name: str):
+        super().__init__(
+            message=f"Model '{model_name}' requires HuggingFace authentication. Please set HF_TOKEN environment variable.",
+            code="authentication_required"
+        )
+        self.model_name = model_name
+    
+    def to_dict(self) -> dict:
+        return {
+            "error": self.code,
+            "message": self.message,
+            "details": {
+                "model_name": self.model_name,
+                "instructions": "Visit https://huggingface.co/settings/tokens to create a token"
+            }
+        }
+
+
+class DiskSpaceError(IRISException):
+    """Insufficient disk space for model download"""
+    
+    def __init__(self, required_gb: float, available_gb: float):
+        super().__init__(
+            message=f"Insufficient disk space. Required: {required_gb:.1f}GB, Available: {available_gb:.1f}GB",
+            code="insufficient_disk_space"
+        )
+        self.required_gb = required_gb
+        self.available_gb = available_gb
+    
+    def to_dict(self) -> dict:
+        return {
+            "error": self.code,
+            "message": self.message,
+            "details": {
+                "required_gb": self.required_gb,
+                "available_gb": self.available_gb
+            }
+        }

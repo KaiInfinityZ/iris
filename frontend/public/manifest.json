@@ -1,0 +1,35 @@
+{
+  "name": "I.R.I.S. - AI Image Generator",
+  "short_name": "I.R.I.S.",
+  "description": "Intelligent Rendering & Image Synthesis - AI-powered image generation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0b",
+  "theme_color": "#8b5cf6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/fav.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["productivity", "graphics", "photo"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Generate Image",
+      "short_name": "Generate",
+      "description": "Create a new AI-generated image",
+      "url": "/generate",
+      "icons": []
+    },
+    {
+      "name": "Gallery",
+      "short_name": "Gallery",
+      "description": "View your generated images",
+      "url": "/gallery",
+      "icons": []
+    }
+  ]
+}

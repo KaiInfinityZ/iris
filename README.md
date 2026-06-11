@@ -38,12 +38,14 @@ This repository provides a **fully functional reference implementation**, not a 
 ## 🖼️ Feature Overview
 
 ### Core Features
-- **Dual Frontend** — Classic HTML UI + Modern React UI
+- **Modern React Frontend** — Responsive UI built with React 18 & Tailwind CSS
+- **Plugin System** — Install, manage, and use custom AI models via ZIP packages
+- **Advanced Image Upscaler** — AI-powered upscaling from 2x to 16x with multiple models
+- **Local Model Management** — Load models from local directories (HuggingFace Hub format)
 - **Multiple AI models** (anime, realistic, pixel art, SDXL)
 - **Text-to-Image** generation with real-time progress
 - **WebSocket streaming** for live updates
 - **Persistent prompt history** (server-side)
-- **NSFW prompt filtering** (configurable, can be disabled)
 - **Multi-GPU support** (NVIDIA CUDA, AMD ROCm, Intel Arc XPU, Apple MPS, CPU)
 
 ### Advanced Features
@@ -66,7 +68,7 @@ This repository provides a **fully functional reference implementation**, not a 
 
 ### Installation
 ```bash
-git clone https://github.com/Michikaitsu/iris.git
+git clone https://github.com/KaiTooast/iris.git
 cd iris
 
 python -m venv venv
@@ -76,6 +78,10 @@ venv\Scripts\activate
 source venv/bin/activate
 
 pip install -r requirements.txt
+
+# Build React frontend
+build_frontend.bat  # Windows
+# or manually: cd frontend && npm install && npm run build
 
 # Optional: Copy environment template
 cp .env.example .env
@@ -90,18 +96,17 @@ cp .env.example .env
 python src/start.py
 
 # Server Modes
-python src/start.py --mode api      # API only
-python src/start.py --mode html     # API + HTML (default)
-python src/start.py --mode react    # API + React build
-python src/start.py --mode full     # All frontends
+python src/start.py                 # React frontend (default)
+python src/start.py --mode react    # React frontend (explicit)
+python src/start.py --mode api      # API only (no frontend)
 
 # Without Discord bot
 python src/start.py --no-bot
 ```
 
-🌐 **HTML Frontend:** [http://localhost:8000](http://localhost:8000)  
-🌐 **React Frontend:** [http://localhost:8000/app](http://localhost:8000/app) (with `--mode react`)  
-🔐 **Admin Panel:** [http://localhost:8000/app/admin](http://localhost:8000/app/admin)
+🌐 **Frontend:** [http://localhost:8000](http://localhost:8000)  
+🔍 **Upscaler:** [http://localhost:8000/upscaler](http://localhost:8000/upscaler)  
+🔐 **Admin Panel:** [http://localhost:8000/admin](http://localhost:8000/admin)
 
 ---
 
@@ -120,13 +125,7 @@ iris/
 │   ├── utils/              # Logging, file management
 │   └── start.py            # Entry point
 │
-├── frontend/               # Classic HTML Web UI
-│   ├── index.html          # Landing page
-│   ├── generate.html       # Generation UI
-│   ├── gallery.html        # Image gallery
-│   └── settings.html       # Settings page
-│
-├── frontend-react/         # Modern React Web UI
+├── frontend/               # Modern React Web UI
 │   ├── src/
 │   │   ├── pages/          # HomePage, GeneratePage, GalleryPage, SettingsPage
 │   │   ├── components/     # Reusable components
@@ -140,6 +139,9 @@ iris/
 │   ├── js/                 # JavaScript
 │   ├── config/             # Bot config files
 │   └── data/               # History (prompts_history.json)
+│
+├── assets/                 # Static assets (thumbnails, icons)
+│   └── thumbnails/         # Model thumbnails (WebP)
 │
 ├── outputs/                # Generated images
 ├── Logs/                   # Runtime logs
@@ -159,8 +161,6 @@ iris/
   "dramEnabled": true,
   "vramThreshold": 6,
   "maxDram": 16,
-  "nsfwEnabled": true,
-  "nsfwStrength": 2,
   "discordEnabled": false
 }
 ```
@@ -170,8 +170,6 @@ iris/
 | `dramEnabled` | Use system RAM when VRAM is low |
 | `vramThreshold` | VRAM threshold (GB) to enable DRAM Extension |
 | `maxDram` | Maximum system RAM to use (GB) |
-| `nsfwEnabled` | Enable/disable NSFW prompt filter |
-| `nsfwStrength` | 1=Minimal, 2=Standard, 3=Strict |
 | `discordEnabled` | Auto-start Discord bot |
 
 ### .env (optional)
@@ -191,15 +189,139 @@ DISCORD_CHANNEL_UPSCALED=channel_id
 
 ## 🖥️ Hardware Reference
 
+### NVIDIA GPUs
+
 | Tier | GPU | VRAM | Notes |
 |------|-----|------|-------|
 | **Minimum** | NVIDIA GTX 1650 | 4 GB | The birthplace. Small models, DRAM Extension recommended. |
-| **Sweet Spot** | **Intel Arc B580** | 12 GB | **Best value for money.** |
+| **Sweet Spot** | **AMD Radeom RX 9070** | 16 GB | Best Price to Performance. |
 | **Advanced** | NVIDIA RTX 4070 Super | 12 GB | Faster inference, still VRAM-limited. |
 | **Professional** | NVIDIA RTX 3090 Ti / 4090 | 24 GB | No-compromise local AI & SDXL. |
-| **God Tier** | **NVIDIA RTX 5090** | 32 GB | Industrial scale. (Overkill for most) |
+| **God Tier** | **NVIDIA RTX 5090** | 32 GB | Near Industrial scale. (Overkill for most) |
 
-> 💡 **Developer Note:** I.R.I.S. was **developed and tested on a GTX 1650**, proving functionality on low-end hardware. We optimize for best hardware per dollar, not expensive branding.
+### AMD Radeon GPUs
+
+| Tier | GPU | VRAM | Architecture | AI Accelerators | Notes |
+|------|-----|------|--------------|-----------------|-------|
+| **Minimum** | AMD RX 5700 XT | 8 GB | RDNA1 | None | Entry-level AMD support. DRAM Extension recommended. |
+| **Good** | AMD RX 6800 XT | 16 GB | RDNA2 | None | Solid performance for SD 1.5 models. |
+| **Recommended** | AMD RX 7800 XT | 16 GB | RDNA3 | Matrix Cores | Excellent AI performance with Matrix Cores. |
+| **High-End** | AMD RX 7900 XTX | 24 GB | RDNA3 | Matrix Cores | SDXL-ready with Matrix Core acceleration. |
+| **Latest** | **AMD RX 9070 XT** | 16 GB | RDNA4 | Enhanced AI Accelerators | Next-gen AI acceleration, optimized for diffusion models. |
+
+> 💡 **AMD GPU Note:** RDNA3+ GPUs (RX 7000/9000 series) include dedicated Matrix Cores for AI workloads, providing significant performance improvements over RDNA1/2. RDNA4 (RX 9000 series) features enhanced AI accelerators specifically optimized for diffusion models.
+
+> 💡 **Developer Note:** I.R.I.S. was **developed and tested on a GTX 1650**, proving functionality on low-end hardware.
+
+---
+
+## 🔌 Plugin System
+
+I.R.I.S. features a **flexible plugin system** that allows you to install, manage, and use custom AI models without modifying source code.
+
+### What are Plugins?
+
+Plugins are **ZIP packages** containing:
+- `manifest.json` — Model metadata and HuggingFace repository reference
+- `thumbnail.webp` — Preview image for the UI
+
+### Plugin Management
+
+Access the **Plugin Manager** at [http://localhost:8000/plugins](http://localhost:8000/plugins)
+
+**Features:**
+- 📦 **Install plugins** via drag-and-drop ZIP upload
+- ✅ **Enable/disable** plugins without uninstalling
+- 🗑️ **Uninstall** plugins with one click
+- 📥 **Automatic model downloads** from HuggingFace
+- 🔍 **Search and filter** by model type, base, or status
+- 🖼️ **Visual thumbnails** for easy identification
+
+### Creating a Plugin
+
+1. **Create manifest.json:**
+```json
+{
+  "name": "My Custom Model",
+  "description": "A custom AI model for specific use cases",
+  "version": "1.0.0",
+  "thumbnail": "thumbnail.webp",
+  "hf_repo": "author/model-repo-id",
+  "type": "txt2img",
+  "base": "sd1.5",
+  "recommended_steps": 30,
+  "recommended_cfg": 7.5,
+  "supports_negative_prompt": true
+}
+```
+
+2. **Add a thumbnail** (512×512 or 768×768 WebP image)
+
+3. **Package as ZIP:**
+```bash
+zip my-model-plugin.zip manifest.json thumbnail.webp
+```
+
+4. **Install via Plugin Manager UI**
+
+### Manifest Schema
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | ✅ | Display name (max 100 chars) |
+| `description` | string | ❌ | Short description (max 500 chars) |
+| `version` | string | ✅ | Semantic version (X.Y.Z) |
+| `thumbnail` | string | ❌ | Thumbnail filename |
+| `hf_repo` | string | ✅ | HuggingFace repo (author/model) |
+| `type` | string | ✅ | `txt2img` or `img2img` |
+| `base` | string | ✅ | `sd1.5`, `sd2.1`, `sdxl`, or `flux` |
+| `recommended_steps` | integer | ❌ | Default steps (1-200) |
+| `recommended_cfg` | number | ❌ | Default CFG scale (1-30) |
+| `supports_negative_prompt` | boolean | ❌ | Negative prompt support |
+
+### Plugin API Endpoints
+
+```bash
+# List all plugins
+GET /api/plugins/list
+
+# Install plugin
+POST /api/plugins/install
+Content-Type: multipart/form-data
+Body: file=plugin.zip
+
+# Enable plugin
+POST /api/plugins/enable/{plugin_id}
+
+# Disable plugin
+POST /api/plugins/disable/{plugin_id}
+
+# Uninstall plugin
+DELETE /api/plugins/uninstall/{plugin_id}
+
+# Get plugin details
+GET /api/plugins/{plugin_id}
+
+# WebSocket for download progress
+WS /ws/download/{plugin_id}
+```
+
+### Starter Plugins
+
+I.R.I.S. comes with **11 pre-installed plugins**:
+- Dreamshaper 8 (versatile allround model)
+- Anime Kawai Diffusion
+- Abyssorangemix3 (semi-realistic anime)
+- Counterfeit V3.0 (detailed illustrations)
+- Openjourney (artistic style)
+- Pixel Art Diffusion
+- Anything V5 (classic anime)
+- Stable Diffusion 2.1 (realistic photos)
+- Waifu Diffusion
+- Stable Diffusion 3.5 Medium (AMD GPU optimized)
+- Animagine XL 3.1 (high-quality anime SDXL)
+
+📖 **[View Plugin Development Guide](docs/PLUGIN_DEVELOPMENT.md)** - Complete guide for creating custom plugins.
 
 ---
 
@@ -208,19 +330,13 @@ DISCORD_CHANNEL_UPSCALED=channel_id
 - REST API for generation, gallery, system info
 - WebSocket streams for:
   - Generation progress
+  - Model download progress
   - Gallery updates
   - Multi-page synchronization
 
 Perfect for **custom frontends**, automation, or external clients.
 
----
-
-## 🛡️ Safety
-
-- Prompt-based NSFW filtering
-- Three strength levels (Minimal, Standard, Strict)
-- Category-based detection
-- Easily extendable or disableable
+📖 **[View Full API Documentation](docs/API.md)** - Complete reference for REST endpoints, WebSocket messages, and error handling.
 
 ---
 

@@ -55,6 +55,22 @@ async def get_gallery():
         return {"images": []}
 
 
+@router.get("/gallery/images")
+async def get_gallery_images():
+    """Get all gallery images - for upscaler page library"""
+    try:
+        os.makedirs(OUTPUTS_DIR, exist_ok=True)
+        files = sorted(
+            [f for f in os.listdir(OUTPUTS_DIR) if f.endswith((".png", ".jpg", ".jpeg", ".webp"))],
+            key=lambda x: os.path.getmtime(f"{OUTPUTS_DIR}/{x}"),
+            reverse=True
+        )
+        return {"images": files, "count": len(files)}
+    except Exception as e:
+        logger.error(f"Error loading gallery images: {e}")
+        return {"images": [], "count": 0, "error": str(e)}
+
+
 @router.get("/output-image/{filename}")
 async def get_output_image(filename: str):
     """Get a specific image from outputs directory"""

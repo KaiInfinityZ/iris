@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="irisGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    
+    <linearGradient id="pupilGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    
+    <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    
+    <!-- Glow filters -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="outerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="400" height="200" fill="#0a0a0f"/>
+  
+  <!-- Outer decorative ring -->
+  <ellipse cx="200" cy="85" rx="65" ry="55" 
+           fill="none" 
+           stroke="url(#irisGradient)" 
+           stroke-width="1.5" 
+           opacity="0.3"
+           filter="url(#outerGlow)"/>
+  
+  <!-- Middle decorative ring -->
+  <ellipse cx="200" cy="85" rx="52" ry="44" 
+           fill="none" 
+           stroke="url(#ringGradient)" 
+           stroke-width="2" 
+           opacity="0.5"/>
+  
+  <!-- Iris shape (main circle with gradient) -->
+  <circle cx="200" cy="85" r="40" fill="url(#irisGradient)" filter="url(#glow)"/>
+  
+  <!-- Inner ring (iris detail) -->
+  <circle cx="200" cy="85" r="32" 
+          fill="none" 
+          stroke="#a5b4fc" 
+          stroke-width="1" 
+          opacity="0.6"/>
+  
+  <!-- Hexagonal pupil -->
+  <polygon points="200,65 215,78 215,92 200,105 185,92 185,78" 
+           fill="url(#pupilGradient)"
+           filter="url(#glow)"/>
+  
+  <!-- Center highlight -->
+  <circle cx="200" cy="85" r="12" fill="#1e1b4b" opacity="0.8"/>
+  
+  <!-- Light reflection -->
+  <ellipse cx="192" cy="77" rx="6" ry="4" fill="#ffffff" opacity="0.7"/>
+  <circle cx="208" cy="93" r="2" fill="#ffffff" opacity="0.4"/>
+  
+  <!-- Outer geometric decorations -->
+  <line x1="200" y1="30" x2="200" y2="45" stroke="#7c3aed" stroke-width="1.5" opacity="0.5"/>
+  <line x1="200" y1="125" x2="200" y2="140" stroke="#3b82f6" stroke-width="1.5" opacity="0.5"/>
+  <line x1="145" y1="85" x2="160" y2="85" stroke="#7c3aed" stroke-width="1.5" opacity="0.5"/>
+  <line x1="240" y1="85" x2="255" y2="85" stroke="#3b82f6" stroke-width="1.5" opacity="0.5"/>
+  
+  <!-- Diagonal accents -->
+  <line x1="160" y1="50" x2="170" y2="60" stroke="#818cf8" stroke-width="1" opacity="0.4"/>
+  <line x1="240" y1="120" x2="230" y2="110" stroke="#818cf8" stroke-width="1" opacity="0.4"/>
+  
+  <!-- Text: I.R.I.S. -->
+  <text x="200" y="170" 
+        font-family="'Courier New', monospace" 
+        font-size="28" 
+        font-weight="bold" 
+        fill="#ffffff" 
+        text-anchor="middle" 
+        letter-spacing="8">
+    I.R.I.S.
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="200" y="188" 
+        font-family="'Courier New', monospace" 
+        font-size="10" 
+        fill="#6366f1" 
+        text-anchor="middle" 
+        letter-spacing="4"
+        opacity="0.8">
+    INTELLIGENT RENDERING &amp; IMAGING SYSTEM
+  </text>
+</svg>

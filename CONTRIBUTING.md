@@ -100,7 +100,7 @@ Large features should be discussed via Issues first.
 ### 1. Fork & Clone
 
 \`\`\`bash
-git clone https://github.com/Michikaitsu/IRIS.git
+git clone https://github.com/YOUR_USERNAME/IRIS.git
 cd IRIS
 git remote add upstream https://github.com/ORIGINAL_OWNER/IRIS.git
 \`\`\`

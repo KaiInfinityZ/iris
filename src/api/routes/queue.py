@@ -17,8 +17,8 @@ class QueueAddRequest(BaseModel):
     negative_prompt: Optional[str] = ""
     width: int = 512
     height: int = 768
-    steps: int = 35
-    cfg_scale: float = 10.0
+    steps: Optional[int] = None
+    cfg_scale: Optional[float] = None
     seed: int = -1
     style: str = "anime_kawai"
 

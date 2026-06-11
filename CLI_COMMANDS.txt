@@ -1,0 +1,106 @@
+============================================================
+Local AI Deployment - CLI Commands (Copy-Paste Ready)
+AMD RX 9070 (RDNA4) - FP16 Optimized
+============================================================
+
+=== OPTION A: AUTOMATISIERT (EMPFOHLEN) ===
+
+deploy_models.bat
+
+
+=== OPTION B: MANUELL (FÜR EXPERTEN) ===
+
+REM Schritt 1: Verzeichnisse erstellen
+mkdir "D:\AI_Models\huggingface\hub"
+mkdir "D:\Dev\iris\assets\thumbnails"
+
+REM Schritt 2: HuggingFace CLI installieren
+pip install huggingface-hub[cli]
+
+REM Schritt 3: Animagine XL 4.0 herunterladen (~6.9 GB, 10-30 Minuten)
+huggingface-cli download cagliostrolab/animagine-xl-4.0 --local-dir "D:\AI_Models\huggingface\hub\models--cagliostrolab--animagine-xl-4.0" --local-dir-use-symlinks False
+
+REM Schritt 4: Pony V7 Base herunterladen (~6.9 GB, 10-30 Minuten)
+huggingface-cli download purplesmartai/pony-v7-base --include "*.safetensors" "*.json" --exclude "*fp8*" "*gguf*" --local-dir "D:\AI_Models\huggingface\hub\models--purplesmartai--pony-v7-base" --local-dir-use-symlinks False
+
+REM Schritt 5: FLUX.1-schnell herunterladen (~11.9 GB, 15-45 Minuten)
+huggingface-cli download black-forest-labs/FLUX.1-schnell --local-dir "D:\AI_Models\huggingface\hub\models--black-forest-labs--FLUX.1-schnell" --local-dir-use-symlinks False
+
+REM Schritt 6: Animagine Thumbnail herunterladen
+curl -L "https://huggingface.co/cagliostrolab/animagine-xl-4.0/resolve/main/sample_images/sample_1.png" -o "D:\Dev\iris\assets\thumbnails\thumbnail-animagine-xl-4.0.webp"
+
+REM Schritt 7: Pony Thumbnail herunterladen
+curl -L "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/78f78e0a-5cbb-4d8f-aa1f-e1c6f8d2c0e0/width=450/00012-3799193734.jpeg" -o "D:\Dev\iris\assets\thumbnails\thumbnail-pony-v7-base.webp"
+
+REM Schritt 8: FLUX Thumbnail herunterladen
+curl -L "https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/images/example_1.png" -o "D:\Dev\iris\assets\thumbnails\thumbnail-flux-schnell.webp"
+
+
+=== SERVER STARTEN ===
+
+REM Standard-Start (empfohlen)
+python src/main.py
+
+REM Mit zusätzlichen Optimierungen (falls Probleme)
+python src/main.py --always-offload-from-vram --attention-split
+
+REM Mit Debug-Logs (für Troubleshooting)
+python src/main.py --verbose
+
+
+=== TROUBLESHOOTING ===
+
+REM HuggingFace CLI installieren
+pip install huggingface-hub[cli]
+
+REM Dependencies installieren
+pip install -r requirements.txt
+
+REM Python-Version prüfen (3.10+ erforderlich)
+python --version
+
+REM Speicherplatz prüfen
+dir "D:\AI_Models"
+
+REM VRAM-Auslastung prüfen (Task Manager)
+REM Strg+Shift+Esc -> Leistung -> GPU
+
+
+=== LINUX-BEFEHLE (FALLS BENÖTIGT) ===
+
+# Verzeichnisse erstellen
+mkdir -p "$HOME/AI_Models/huggingface/hub"
+mkdir -p "$HOME/iris/assets/thumbnails"
+
+# HuggingFace CLI installieren
+pip install huggingface-hub[cli]
+
+# Animagine XL 4.0 herunterladen
+huggingface-cli download cagliostrolab/animagine-xl-4.0 --local-dir "$HOME/AI_Models/huggingface/hub/models--cagliostrolab--animagine-xl-4.0" --local-dir-use-symlinks False
+
+# Pony V7 Base herunterladen
+huggingface-cli download purplesmartai/pony-v7-base --include "*.safetensors" "*.json" --exclude "*fp8*" "*gguf*" --local-dir "$HOME/AI_Models/huggingface/hub/models--purplesmartai--pony-v7-base" --local-dir-use-symlinks False
+
+# FLUX.1-schnell herunterladen
+huggingface-cli download black-forest-labs/FLUX.1-schnell --local-dir "$HOME/AI_Models/huggingface/hub/models--black-forest-labs--FLUX.1-schnell" --local-dir-use-symlinks False
+
+# Thumbnails herunterladen
+curl -L "https://huggingface.co/cagliostrolab/animagine-xl-4.0/resolve/main/sample_images/sample_1.png" -o "$HOME/iris/assets/thumbnails/thumbnail-animagine-xl-4.0.webp"
+curl -L "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/78f78e0a-5cbb-4d8f-aa1f-e1c6f8d2c0e0/width=450/00012-3799193734.jpeg" -o "$HOME/iris/assets/thumbnails/thumbnail-pony-v7-base.webp"
+curl -L "https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/images/example_1.png" -o "$HOME/iris/assets/thumbnails/thumbnail-flux-schnell.webp"
+
+# Server starten
+python src/main.py
+
+
+============================================================
+HINWEISE
+============================================================
+
+1. Das ^ Zeichen ist der Zeilenumbruch in Windows CMD
+2. Kopiere die Befehle exakt so (inklusive Anführungszeichen)
+3. Der Download kann 30-90 Minuten dauern
+4. Benötigter Speicherplatz: ~35 GB
+5. Lass das Terminal-Fenster während des Downloads offen
+
+============================================================

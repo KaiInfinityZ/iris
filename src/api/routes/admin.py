@@ -8,8 +8,10 @@ import time
 from datetime import datetime
 from collections import deque
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from src.api.services.pipeline import pipeline_service
+from src.api.services.model_scanner import ModelScanner
 from src.utils.logger import create_logger
 
 logger = create_logger("AdminRoutes")
@@ -183,4 +185,132 @@ async def unload_model():
             }
     except Exception as e:
         add_log("ERROR", f"Failed to unload model: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# Model Management Endpoints
+# ============================================
+
+class ModelEnableRequest(BaseModel):
+    model_key: str
+    enabled: bool
+
+
+@router.get("/models/scan")
+async def scan_models():
+    """Scan local directory for models and update models.json"""
+    try:
+        found_models = ModelScanner.scan_local_models()
+        success = ModelScanner.update_models_json(auto_discovered=True)
+        
+        if success:
+            add_log("INFO", f"Model scan completed: {len(found_models)} models found")
+            return {
+                "success": True,
+                "models_found": len(found_models),
+                "models": [m["model_id"] for m in found_models]
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update models.json")
+    except Exception as e:
+        add_log("ERROR", f"Model scan failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/models/list")
+async def list_models():
+    """List all models with their enabled/disabled status"""
+    try:
+        import json
+        from src.core.config import Config
+        
+        config_path = Config.CONFIG_DIR / "models.json"
+        
+        if not config_path.exists():
+            return {"models": []}
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        models = data.get("models", {})
+        
+        # Format for frontend
+        model_list = []
+        for key, config in models.items():
+            model_list.append({
+                "key": key,
+                "id": config["id"],
+                "description": config["description"],
+                "tier": config["tier"],
+                "vram_gb": config["vram_gb"],
+                "enabled": not config.get("disabled", False),
+                "model_type": config.get("model_type", "sd15"),
+                "quality_stars": config.get("quality_stars", 3),
+                "speed_stars": config.get("speed_stars", 3)
+            })
+        
+        return {"models": model_list}
+    except Exception as e:
+        add_log("ERROR", f"Failed to list models: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/models/enable")
+async def enable_model(request: ModelEnableRequest):
+    """Enable or disable a specific model"""
+    try:
+        success = ModelScanner.set_model_enabled(request.model_key, request.enabled)
+        
+        if success:
+            status = "enabled" if request.enabled else "disabled"
+            add_log("INFO", f"Model {request.model_key} {status}")
+            return {
+                "success": True,
+                "message": f"Model {request.model_key} {status}"
+            }
+        else:
+            raise HTTPException(status_code=404, detail=f"Model {request.model_key} not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        add_log("ERROR", f"Failed to update model: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/models/{model_key}")
+async def delete_model(model_key: str):
+    """Delete a model from disk (use with caution!)"""
+    try:
+        import shutil
+        from src.core.config import Config
+        
+        # First disable the model
+        ModelScanner.set_model_enabled(model_key, False)
+        
+        # Find model directory
+        models_path = Path(Config.HUGGINGFACE_MODELS_PATH)
+        
+        # Convert key back to directory name (e.g., ojimi_anime-kawai-diffusion -> models--Ojimi--anime-kawai-diffusion)
+        parts = model_key.split("_")
+        dir_name = f"models--{parts[0]}--{'_'.join(parts[1:])}"
+        model_dir = models_path / dir_name
+        
+        if not model_dir.exists():
+            raise HTTPException(status_code=404, detail=f"Model directory not found: {model_dir}")
+        
+        # Delete directory
+        shutil.rmtree(model_dir)
+        
+        add_log("WARNING", f"Model {model_key} deleted from disk")
+        logger.warning(f"Model {model_key} deleted from disk via Admin Panel")
+        
+        return {
+            "success": True,
+            "message": f"Model {model_key} deleted from disk"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        add_log("ERROR", f"Failed to delete model: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

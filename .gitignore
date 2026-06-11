@@ -23,12 +23,16 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.whl
 
 # === Virtual Environment ===
 venv/
 ENV/
 env/
 .venv/
+venv310/
+venv311/
+venv312/
 
 # === IDE / Editor ===
 .vscode/
@@ -38,23 +42,28 @@ env/
 *~
 *.sublime-project
 *.sublime-workspace
+.DS_Store
 
 # === Environment Variables ===
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # === Logs ===
 Logs/*.log
+Logs/session_*.log
 !Logs/.gitkeep
 bot_out.txt
 bot_err.txt
+*.log
 
 # === Generated Outputs (Images) ===
 outputs/*.png
 outputs/*.jpg
 outputs/*.jpeg
 outputs/*.webp
+outputs/*.gif
 !outputs/.gitkeep
 
 # === Generated Thumbnails ===
@@ -63,36 +72,66 @@ assets/thumbnails/*.jpg
 assets/thumbnails/*.webp
 !assets/thumbnails/.gitkeep
 
-# === Model Weights & Cache ===
-weights/
-models/
-*.pth
-*.pt
-*.ckpt
-*.safetensors
+# === Model Weights & Cache (HuggingFace) ===
+# Note: models/ is tracked for structure, cache files are ignored
 .cache/
+.huggingface/
+hf_cache/
 ~/.cache/huggingface/
 
-# === User Settings ===
-settings.json
+# === Kiro (IDE) ===
+.kiro/
 
-# === Static Data (User Generated) ===
-static/data/*.json
-!static/data/.gitkeep
-static/config/*
-!static/config/.gitkeep
+# === Generated Documentation (not on GitHub) ===
+docs/
+
+# === Node.js Dependencies ===
+frontend/node_modules/
+frontend/.vite/
+frontend/build/
+frontend/dist/
+
+# === Frontend Build Artifacts ===
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === Python Type Checking ===
+.mypy_cache/
+.pytype/
+__pycache__/
+*.pyi
+
+# === Generated Settings ===
+settings.json
+settings_backup.json
+*.settings.json
+
+# === Database ===
+*.db
+*.sqlite
+*.sqlite3
+
+# === Discord Bot ===
+discord_token.txt
+discord_cache/
+
+# === Session Files ===
+session_*.json
+session_*.log
 
 # === OS Files ===
-.DS_Store
 Thumbs.db
 desktop.ini
 ehthumbs.db
+*.lnk
 
 # === Temporary Files ===
 *.tmp
 *.temp
 *.bak
-*.swp
+*.cache
 *~
 
 # === Test Coverage ===
@@ -100,18 +139,55 @@ htmlcov/
 .tox/
 .coverage
 .coverage.*
-.cache
 nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+test_*.py
 
-# === Node.js (frontend-react) ===
-frontend-react/node_modules/
-frontend-react/dist/
-frontend-react/.vite/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+# === Jupyter Notebook ===
+.ipynb_checkpoints/
+*.ipynb
+
+# === Windows ===
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === Build Artifacts ===
+*.log
+*.log.*
+
+# === Model Cache Patterns ===
+# HuggingFace Hub uses specific cache patterns
+models/**/snapshots/
+models/**/refs/
+models/**/*.index.json
+models/**/*.bin
+models/**/*.safetensors
+models/**/model.safetensors
+models/**/pytorch_model.bin
+models/**/diffusion_pytorch_model.safetensors
+
+# === Large Model Files (always generated locally) ===
+# These are too large to commit - always generated on first use
+models/huggingface/**
+!models/huggingface/.gitkeep
+!models/huggingface/.gitignore
+
+# === Static Assets (User Generated) ===
+static/assets/*
+!static/assets/.gitkeep
+static/data/*.json
+!static/data/.gitkeep
+static/config/*
+!static/config/.gitkeep
+
+# === Temporary Generation Files ===
+temp_*
+tmp_*
+in_progress_*
+
+# === Changelog (usually excluded from versioning for rapid updates) ===
+CHANGELOG.md

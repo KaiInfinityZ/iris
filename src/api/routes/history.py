@@ -20,6 +20,22 @@ class AddTagRequest(BaseModel):
     tag: str
 
 
+@router.get("/prompts")
+async def get_prompts_history(limit: int = 50):
+    """Get prompt history (legacy endpoint for compatibility)"""
+    items = generation_history.get_all(limit=limit)
+    # Extract just prompts for compatibility
+    prompts = []
+    for item in items:
+        if 'prompt' in item:
+            prompts.append({
+                'prompt': item['prompt'],
+                'timestamp': item.get('timestamp', ''),
+                'id': item.get('id', '')
+            })
+    return {"history": prompts}
+
+
 @router.get("")
 async def get_history(limit: int = 100, offset: int = 0):
     """Get paginated generation history"""

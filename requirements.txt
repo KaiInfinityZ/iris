@@ -16,9 +16,14 @@ slowapi==0.1.9
 # ---------------------------------------------
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 #
-# OPTION 3: AMD GPU (ROCm 6.0) - Linux only
-# -----------------------------------------
+# OPTION 3: AMD GPU (ROCm 6.0+) - Linux/Windows
+# ----------------------------------------------
+# Supports: RX 5000 (RDNA1), RX 6000 (RDNA2), RX 7000 (RDNA3), RX 9000 (RDNA4)
+# Requires: ROCm 5.6+ installed (see docs/AMD_GPU_SETUP.md)
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.0
+#
+# For ROCm 6.1 (latest):
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.1
 #
 # OPTION 4: Intel Arc GPU (XPU)
 # -----------------------------
@@ -34,28 +39,36 @@ slowapi==0.1.9
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 #
 # =============================================================================
+# IMPORTANT: Comment out the lines below and use the appropriate pip install
+# command above based on your GPU type!
+# =============================================================================
 
-# Default: NVIDIA CUDA 12.1 (comment out if using different GPU)
+# Default: NVIDIA CUDA 12.1 (comment out if using AMD/Intel/Apple GPU)
 --extra-index-url https://download.pytorch.org/whl/cu121
 torch>=2.0.0
 torchvision>=0.15.0
 torchaudio>=2.0.0
 
-# Diffusion & AI Libraries
-diffusers==0.30.3
-transformers==4.40.0
-accelerate==0.28.0
-huggingface_hub>=0.24.0
+# Diffusion & AI Libraries - LATEST VERSIONS (May 2026)
+diffusers>=0.38.0
+transformers>=5.0.0
+accelerate>=1.0.0
+huggingface_hub>=1.0.0
 
 # Additional dependencies
-Pillow==10.1.0
-numpy==1.24.3
-loguru==0.7.2
-python-dotenv==1.0.0
+Pillow>=12.0.0
+numpy>=2.0.0
+loguru>=0.7.2
+python-dotenv>=1.0.0
 psutil>=5.9.0
 
 # Image processing
-opencv-python>=4.8.0
+opencv-python>=4.10.0
+
+# Real-ESRGAN upscaling
+basicsr>=1.4.2
+realesrgan>=0.3.0
+gfpgan>=1.3.8
 
 # Testing (optional)
 pytest>=7.4.0
